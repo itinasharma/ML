@@ -66,7 +66,7 @@ def load_chain():
     query_engine = SQLTableRetrieverQueryEngine(
         sql_database, obj_index.as_retriever(similarity_top_k=3), service_context=service_context
     )
-    
+
     return query_engine
 
 data = None
@@ -75,8 +75,8 @@ def show_graph():
     column_names, column_values = zip(*data)
     fig, ax = plt.subplots()
     ax.bar(column_names, column_values)
-    st.pyplot(fig)  
-    
+    st.pyplot(fig)
+
 if __name__ == "__main__":
 
     st.set_page_config(
@@ -86,12 +86,19 @@ if __name__ == "__main__":
         initial_sidebar_state="expanded", )
     st.header("Classic Cars Interactive Dashboard")
     sidebar()
-    
+
     if not st.session_state.get("open_api_key_configured"):
         st.error("Please configure your API Keys!")
     else:
         chain = load_chain()
-        chart_type = st.selectbox("Select a Visualization Type: ",['None', 'Bar', 'Pie'])
+        #chart_type = st.selectbox("Select a Visualization Type: ",['None', 'Bar', 'Pie','Line','Histogram','Scatter'])
+        with st.sidebar:
+            st.markdown(
+                "Select a Visualization Type: "
+            )
+            options = ['None', 'Bar', 'Pie','Line','Histogram','Scatter']
+            chart_type = {option: st.checkbox(option) for option in options}
+            selected_charts = [chart for chart, value in chart_type.items() if value]
         if "messages" not in st.session_state:
             st.session_state["messages"] = [
                 {"role": "assistant", "content": "How can I help you?"}]
@@ -100,8 +107,8 @@ if __name__ == "__main__":
         for message in st.session_state.messages:
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
-        
-        
+
+
         if user_input := st.chat_input("What is your question?"):
             # Add user message to chat history
             st.session_state.messages.append({"role": "user", "content": user_input})
@@ -111,9 +118,9 @@ if __name__ == "__main__":
 
             with st.chat_message("assistant"):
                 message_placeholder = st.empty()
-                
+
                 with st.spinner('CHAT-BOT is at Work ...'):
-                    assistant_response = chain.query(user_input)                    
+                    assistant_response = chain.query(user_input)
                     st.write('1. Natural Language Question send to LLM')
                     st.write('2. LLM Generated SQL Query')
                     st.write(assistant_response.metadata['sql_query'])
@@ -125,11 +132,41 @@ if __name__ == "__main__":
                     st.markdown(assistant_response)
                     data = assistant_response.metadata['result']
                     column_names, column_values = zip(*data)
-                    if(chart_type == 'Bar'):
-                        fig, ax = plt.subplots()
-                        ax.bar(column_names, column_values)
-                        st.pyplot(fig)  
-                    
-            st.session_state.messages.append({"role": "assistant", "content": assistant_response})
-            
-          
+                    for chart in selected_charts:
+                        match chart:
+                            case 'Bar':
+                                fig, ax = plt.subplots()
+                                ax.bar(column_names, column_values)
+                                ax.tick_params(axis='x', labelrotation=45)
+                                ax.set_title('Bar Graph')
+                                st.pyplot(fig)
+                            case 'Pie':
+                                fig, ax = plt.subplots()
+                                ax.pie(column_values, labels = column_names)
+                                ax.set_title('Pie Chart')
+                                st.pyplot(fig)
+                            case 'Line':
+                                fig, ax = plt.subplots()
+                                ax.plot(column_names, column_values,color='red')
+                                ax.tick_params(axis='x', labelrotation=45)
+                                ax.set_title('Line Chart')
+                                st.pyplot(fig)
+                            case 'Histogram':
+                                fig, ax = plt.subplots()
+                                ax.hist(column_values, color='Yellow', edgecolor='black')
+                                ax.tick_params(axis='x', labelrotation=45)
+                                ax.grid()
+                                ax.set_title('Histogram')
+                                st.pyplot(fig)
+                            case 'Scatter':
+                                fig, ax = plt.subplots()
+                                ax.scatter(column_names, column_values, c ="blue")
+                                ax.tick_params(axis='x', labelrotation=45)
+                                ax.grid()
+                                ax.set_title('Scatter Plot')
+                                st.pyplot(fig)
+
+
+        st.session_state.messages.append({"role": "assistant", "content": assistant_response})
+
+
